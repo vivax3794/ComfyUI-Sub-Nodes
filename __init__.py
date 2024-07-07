@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 import random
+import os
 import json
 import pathlib
 from aiohttp import web
@@ -13,6 +14,10 @@ from server import PromptServer
 console = Console(color_system="truecolor", force_terminal=True)
 
 SUBNODE_FOLDER = pathlib.Path(folder_paths.base_path) / "subnodes"
+if not SUBNODE_FOLDER.exists():
+    os.mkdir(SUBNODE_FOLDER)
+
+
 def get_workflow_names() -> list[str]:
     files = list(SUBNODE_FOLDER.glob("*.json"))
     return [file.name for file in files]
