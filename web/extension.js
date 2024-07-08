@@ -1,5 +1,6 @@
 import { ComfyApp, app } from "../../scripts/app.js";
 import { api } from "../../../scripts/api.js"
+import {ComfyWidgets} from "../../../scripts/widgets.js";
 
 const original = app.graphToPrompt;
 app.graphToPrompt = async function() {
@@ -7,6 +8,8 @@ app.graphToPrompt = async function() {
     workflow.api_prompt = output
     return {workflow, output}
 }
+
+let executing_title = "OH NO, NO DATA!"
 
 app.registerExtension({
     name: "Viv.Subgraph",
@@ -29,16 +32,15 @@ app.registerExtension({
                 if (!link_info) return;
 
                 if (type == 1 && connected) {
-                    if (node_slot.type == "*") {
+                    if (node_slot.name == "*") {
                         this.addInput("*", "*")
-                    }
-
-                    const from_node = this.graph.getNodeById(link_info.origin_id);
-                    if (from_node) {
-                        const from_slot = from_node.outputs[link_info.origin_slot];
-                        if (from_slot) {
-                            node_slot.type = from_slot.type;
-                            node_slot.name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
+                        const from_node = this.graph.getNodeById(link_info.origin_id);
+                        if (from_node) {
+                            const from_slot = from_node.outputs[link_info.origin_slot];
+                            if (from_slot) {
+                                node_slot.type = from_slot.type;
+                                node_slot.name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
+                            }
                         }
                     }
 
@@ -70,25 +72,40 @@ app.registerExtension({
                 if (!link_info) return;
 
                 if (type == 2 && connected) {
-                    if (node_slot.type == "*") {
+                    if (node_slot.name == "*") {
                         this.addOutput("*", "*")
-                    }
-
-                    const from_node = this.graph.getNodeById(link_info.target_id);
-                    if (from_node) {
-                        const from_slot = from_node.inputs[link_info.target_slot];
-                        if (from_slot) {
-                            node_slot.type = from_slot.type;
-                            node_slot.name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
+                        const from_node = this.graph.getNodeById(link_info.target_id);
+                        if (from_node) {
+                            const from_slot = from_node.inputs[link_info.target_slot];
+                            if (from_slot) {
+                                node_slot.type = from_slot.type;
+                                node_slot.name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
+                            }
                         }
                     }
-
                 }
             }
         }
         if (nodeData.name === "VIV_Subgraph") {
-            nodeType.prototype.onNodeCreated = async function () {
+            const onDrawForeground = nodeType.prototype.onDrawForeground;
+            nodeType.prototype.onDrawForeground = async function(ctx) {
+                const r = onDrawForeground?.apply?.(this, arguments);
+                ctx.save();
 
+                if (app.runningNodeId == this.id) {
+                    const sz = ctx.measureText(executing_title);
+                    ctx.fillStyle = "dodgerblue"
+                    ctx.beginPath();
+                    ctx.roundRect(0, -LiteGraph.NODE_TITLE_HEIGHT - 20, sz.width + 12, 20, 5);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#fff";
+                    ctx.fillText(executing_title, 6, -LiteGraph.NODE_TITLE_HEIGHT - 6);
+                }
+                ctx.restore();
+                return r;
+            }
+            nodeType.prototype.onNodeCreated = async function () {
                 const node = this;
                 const widget = this.widgets[0];
                 let value = widget.value;
@@ -121,6 +138,37 @@ app.registerExtension({
                         }
                     }
                 })
+            }
+        }
+        if (nodeData.name === "VIV_Default") {
+            nodeType.prototype.onConnectionsChange = function (type, index, connected, link_info, node_slot) {
+                if (!link_info) return;
+
+                if (type == 1 && connected) {
+                    const from_node = this.graph.getNodeById(link_info.origin_id);
+                    if (from_node) {
+                        const from_slot = from_node.outputs[link_info.origin_slot];
+                        if (from_slot) {
+                            for (let i = 0; i < 2; i++) {
+                                this.inputs[i].type = from_slot.type;
+                            }
+                            this.outputs[0].type = from_slot.type;
+                        }
+                    }
+                }
+                if (type == 2 && connected) {
+                    const from_node = this.graph.getNodeById(link_info.target_id);
+                    if (from_node) {
+                        const from_slot = from_node.inputs[link_info.target_slot];
+                        if (from_slot) {
+                            for (let i = 0; i < 2; i++) {
+                                this.inputs[i].type = from_slot.type;
+                            }
+                            this.outputs[0].type = from_slot.type;
+                        }
+                    }
+
+                }
             }
         }
     },
@@ -159,10 +207,34 @@ async function load_input_outputs(node, value) {
         node.addInput("*", "*");
     }
 
+    node.widgets.splice(2);
     i = 0;
     for (const input of inputs) {
         node.inputs[i].type = input.type;
         node.inputs[i].name = input.name;
         i++;
+
+        let widget_func = ComfyWidgets[input.name.toLowerCase().includes("seed") ? "INT:seed" : input.type];
+        if (widget_func !== undefined) {
+            let widget = widget_func(node, input.name, [input.type, {}], app).widget;
+            Object.defineProperty(widget, "value", {
+                get() {
+                    return node.properties[input.name];
+                },
+                set(newVal) {
+                    node.properties[input.name] = newVal;
+                }
+            })
+        }
     }
 }
+
+let last_idempt = -1;
+
+api.addEventListener("/viv/subgraph/executing", ({ detail }) => {
+    let { title, idempt } = detail;
+    if (idempt > last_idempt) {
+        last_idempt = idempt;
+        executing_title = title;
+    }
+});

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import random
 import os
 import json
@@ -8,8 +8,25 @@ from aiohttp import web
 from rich.console import Console
 
 from execution import PromptExecutor, validate_prompt
+import execution
 import folder_paths
 from server import PromptServer
+
+orignal_execute = execution.get_input_data
+idempt = 0
+def new_execute(*args):
+    global idempt
+    try:
+        node_id = args[2]
+        prompt = args[4]
+        class_type = prompt[node_id]["class_type"];
+        node_title = f"{class_type} #{node_id}"
+        PromptServer.instance.send_sync("/viv/subgraph/executing", {"title": node_title, "idempt": idempt})
+        idempt += 1
+    except:
+        pass
+    return orignal_execute(*args)
+execution.get_input_data = new_execute
 
 console = Console(color_system="truecolor", force_terminal=True)
 
@@ -90,13 +107,17 @@ class Any(str):
     def __ne__(self, value: object, /) -> bool:
         return False
 
+class AcceptAnyWidgetInput(dict):
+    def __contains__(self, key: object, /) -> bool:
+        return True
+
 class VIV_Subgraph:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-                "required": {
+                "required": AcceptAnyWidgetInput({
                     "workflow": (tuple(get_workflow_names()),)
-                    },
+                    }),
                 }
 
     RETURN_TYPES = tuple(Any("*") for _ in range(100))
@@ -110,13 +131,22 @@ class VIV_Subgraph:
         server = MagicMock()
         exe = PromptExecutor(server)
 
-
         prompt = load_workflow(workflow)
         _, _, outputs, _ = validate_prompt(prompt) 
-        INPUTS.append(tuple(kwargs.values()))
-        exe.execute(prompt, random.random(), {}, outputs)
 
+        inputs = get_inputs(workflow)
+        input_order = [inp["name"] for inp in inputs]
+        kwargs = {key: value for (key, value) in kwargs.items() if key in input_order}
+        for inp in inputs:
+            if inp["name"] not in kwargs:
+                kwargs[inp["name"]] = None
+        kwargs = sorted(kwargs.items(), key=lambda x: input_order.index(x[0]))
+        kwargs = (value for (_, value) in kwargs)
+
+        INPUTS.append(tuple(kwargs))
+        exe.execute(prompt, random.random(), {}, outputs)
         results = OUTPUT_RESULTS.pop()
+
         console.print("[cyan]Subgraph done[/cyan]")
 
         return tuple(results.values())
@@ -162,6 +192,29 @@ class VIV_Subgraph_inputs:
     def run(self):
         return tuple(INPUTS.pop())
 
+class VIV_Default:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+                "required": {
+                    "default": Any("*"),
+                    },
+                "optional": {
+                    "inp": Any("*"),
+                    }
+                }
+
+    RETURN_TYPES = (Any("*"),)
+    RETURN_NAMES = ("result",)
+    FUNCTION = "run"
+    CATEGORY = "sub_graph"
+    OUTPUT_NODE = True
+
+    def run(self, default, inp=None):
+        if inp is None:
+            return (default,)
+        return (inp,)
+
 @PromptServer.instance.routes.get("/viv/subgraph")
 async def get_workflow(request):
     workflow = request.rel_url.query["workflow"] + ".json"
@@ -186,7 +239,8 @@ console.print("[red]WARNING: This is a very experimental setup :P![/red]")
 NODE_CLASS_MAPPINGS = {
         "VIV_Subgraph": VIV_Subgraph,
         "VIV_Subgraph_Outputs": VIV_Subgraph_outputs,
-        "VIV_Subgraph_Inputs": VIV_Subgraph_inputs
+        "VIV_Subgraph_Inputs": VIV_Subgraph_inputs,
+        "VIV_Default": VIV_Default,
         }
 
 MANIFEST = {
