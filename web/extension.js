@@ -214,6 +214,10 @@ async function load_input_outputs(node, value) {
         node.inputs[i].name = input.name;
         i++;
 
+        if (input.type == "COMBO") {
+            continue;
+        }
+
         let widget_func = ComfyWidgets[input.name.toLowerCase().includes("seed") ? "INT:seed" : input.type];
         if (widget_func !== undefined) {
             let widget = widget_func(node, input.name, [input.type, {}], app).widget;
