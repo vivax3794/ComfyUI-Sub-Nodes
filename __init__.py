@@ -12,9 +12,12 @@ import execution
 import folder_paths
 from server import PromptServer
 
-orignal_execute = execution.get_input_data
+console = Console(color_system="truecolor", force_terminal=True)
+
 idempt = 0
-def new_execute(*args):
+
+orignal_input = execution.get_input_data
+def new_input(*args):
     global idempt
     try:
         node_id = args[2]
@@ -25,10 +28,19 @@ def new_execute(*args):
         idempt += 1
     except:
         pass
-    return orignal_execute(*args)
-execution.get_input_data = new_execute
 
-console = Console(color_system="truecolor", force_terminal=True)
+    return orignal_input(*args)
+execution.get_input_data = new_input
+
+class WrappedExecutor(PromptExecutor):
+    def __init__(self):
+        server = MagicMock()
+        super().__init__(server)
+        self._viv_error = None
+
+    def handle_execution_error(self, *args):
+        self._viv_error = args[-1]
+        super().handle_execution_error(*args)
 
 SUBNODE_FOLDER = pathlib.Path(folder_paths.base_path) / "subnodes"
 if not SUBNODE_FOLDER.exists():
@@ -125,12 +137,17 @@ class VIV_Subgraph:
     OUTPUT_NODE = True
 
     def run(self, workflow: str, **kwargs):
-        console.print("[cyan]Running subgraph[/cyan]")
-        server = MagicMock()
-        exe = PromptExecutor(server)
+        global depth
+
+        console.print(f"[cyan]Running subgraph: [/cyan][yellow]{workflow}[/yellow]")
+        exe = WrappedExecutor()
 
         prompt = load_workflow(workflow)
-        _, _, outputs, _ = validate_prompt(prompt) 
+        _, error, outputs, _ = validate_prompt(prompt) 
+        if error is not None:
+            console.print(f"[red]INVALID SUBGRAPH: {workflow}[/red]")
+            console.print(error)
+            raise ValueError(f"Invalid subgraph: {error['message']}")
 
         inputs = get_inputs(workflow)
         input_order = [inp["name"] for inp in inputs]
@@ -143,6 +160,9 @@ class VIV_Subgraph:
 
         INPUTS.append(tuple(kwargs))
         exe.execute(prompt, random.random(), {}, outputs)
+        if exe._viv_error is not None:
+            console.print(f"[red]ERROR SUBGRAPH: {workflow}[/red]")
+            raise exe._viv_error
         results = OUTPUT_RESULTS.pop()
 
         console.print("[cyan]Subgraph done[/cyan]")
