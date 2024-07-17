@@ -79,9 +79,7 @@ def get_inputs(workflow):
                 if input[0] == node_id:
                     type_ = "*"
 
-                    class_name = node["class_type"]
                     prompt_name = name
-
                     node_name = node["class_type"]
 
                     if extra_data:
