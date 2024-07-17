@@ -5,7 +5,10 @@ YES! Finally!
 
 https://github.com/vivax3794/ComfyUI-Sub-Nodes/assets/51753506/5d75fdfb-acd2-424f-9ee4-3fa47c9a687c
 
+## Disclaimer
 
+This project is still very young, there are likely a good amount of bugs to be found.
+More quality of life stuff will be coming as I have time (and the sanity) to implement them.
 
 ## How to use
 
