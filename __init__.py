@@ -1,9 +1,11 @@
 from unittest.mock import MagicMock, patch
 import random
+import time
 import os
 import json
 import pathlib
 from aiohttp import web
+import hashlib
 
 from rich.console import Console
 
@@ -15,12 +17,15 @@ from server import PromptServer
 console = Console(color_system="truecolor", force_terminal=True)
 
 idempt = 0
+current_node_id = 0
 
 orignal_input = execution.get_input_data
 def new_input(*args):
     global idempt
+    global current_node_id
     try:
         node_id = args[2]
+        current_node_id = node_id
         prompt = args[4]
         class_type = prompt[node_id]["class_type"];
         node_title = f"{class_type} #{node_id}"
@@ -131,6 +136,10 @@ class ReturnAnyAmount(tuple):
     def __getitem__(self, index):
         return Any("*")
 
+in_subgraph = False
+current_cache_prefix = []
+execution_cache = {}
+
 class VIV_Subgraph:
     @classmethod
     def INPUT_TYPES(cls):
@@ -144,44 +153,72 @@ class VIV_Subgraph:
     RETURN_NAMES = ReturnAnyAmount()
     FUNCTION = "run"
     CATEGORY = "sub_graph"
-    OUTPUT_NODE = True
+
+    @classmethod
+    def IS_CHANGED(cls, workflow, **kwargs):
+        workflows = {workflow}
+        stack = [workflow]
+
+        while stack:
+            workflow = stack.pop()
+            data = load_workflow(workflow)
+            for node in data.values():
+                if node["class_type"] == "VIV_Subgraph":
+                    file = node["inputs"]["workflow"]
+                    if file not in workflows:
+                        workflows.add(file)
+                        stack.append(file)
+
+        m = hashlib.sha256()
+        for workflow in sorted(workflows):
+            with open(SUBNODE_FOLDER / workflow, "rb") as f:
+                m.update(f.read())
+
+        return m.digest().hex()
 
     def run(self, workflow: str, **kwargs):
         global depth
 
-        console.print(f"[cyan]Running subgraph: [/cyan][yellow]{workflow}[/yellow]")
-        exe = WrappedExecutor()
+        try:
+            console.print(f"[cyan]Running subgraph: [/cyan][yellow]{workflow}[/yellow]")
+            current_cache_prefix.append(f"{current_node_id}")
+            key = "-".join(current_cache_prefix)
+            console.print(f"[yellow]using cache key: {key}[/yellow]")
+            if key not in execution_cache:
+                execution_cache[key] = WrappedExecutor()
+            exe = execution_cache[key]
 
-        prompt = load_workflow(workflow)
-        _, error, outputs, _ = validate_prompt(prompt) 
-        if error is not None:
-            console.print(f"[red]INVALID SUBGRAPH: {workflow}[/red]")
-            console.print(error)
-            raise ValueError(f"Invalid subgraph: {error['message']}")
+            prompt = load_workflow(workflow)
+            _, error, outputs, _ = validate_prompt(prompt) 
+            if error is not None:
+                console.print(f"[red]INVALID SUBGRAPH: {workflow}[/red]")
+                console.print(error)
+                raise ValueError(f"Invalid subgraph: {error['message']}")
 
-        inputs = get_inputs(workflow)
-        input_order = [inp["name"] for inp in inputs]
-        kwargs = {key: value for (key, value) in kwargs.items() if key in input_order}
-        for inp in inputs:
-            if inp["name"] not in kwargs:
-                kwargs[inp["name"]] = None
-        kwargs = sorted(kwargs.items(), key=lambda x: input_order.index(x[0]))
-        kwargs = (value for (_, value) in kwargs)
+            inputs = get_inputs(workflow)
+            input_order = [inp["name"] for inp in inputs]
+            kwargs = {key: value for (key, value) in kwargs.items() if key in input_order}
+            for inp in inputs:
+                if inp["name"] not in kwargs:
+                    kwargs[inp["name"]] = None
+            kwargs = sorted(kwargs.items(), key=lambda x: input_order.index(x[0]))
+            kwargs = (value for (_, value) in kwargs)
 
-        INPUTS.append(tuple(kwargs))
-        exe.execute(prompt, random.random(), {}, outputs)
-        if exe._viv_error is not None:
-            console.print(f"[red]ERROR SUBGRAPH: {workflow}[/red]")
-            raise exe._viv_error
-        results = OUTPUT_RESULTS.pop()
+            INPUTS.append(tuple(kwargs))
+            exe.execute(prompt, random.random(), {}, outputs)
+            if exe._viv_error is not None:
+                console.print(f"[red]ERROR SUBGRAPH: {workflow}[/red]")
+                raise exe._viv_error
+            results = OUTPUT_RESULTS[-1]
 
-        console.print("[cyan]Subgraph done[/cyan]")
+            console.print("[cyan]Subgraph done[/cyan]")
 
-        return tuple(results.values())
+            return tuple(results.values())
+        finally:
+            current_cache_prefix.pop()
+            if OUTPUT_RESULTS:
+                OUTPUT_RESULTS.pop()
 
-    @classmethod
-    def IS_CHANGED(cls):
-        return True
 
 OUTPUT_RESULTS = []
 
@@ -202,6 +239,10 @@ class VIV_Subgraph_outputs:
         OUTPUT_RESULTS.append(kwargs)
         return ()
 
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return time.time()
+
 INPUTS = []
 
 class VIV_Subgraph_inputs:
@@ -220,6 +261,10 @@ class VIV_Subgraph_inputs:
     def run(self):
         return tuple(INPUTS.pop())
 
+    @classmethod
+    def IS_CHANGED(cls, **args):
+        return time.time()
+
 class VIV_Default:
     @classmethod
     def INPUT_TYPES(cls):
@@ -236,7 +281,6 @@ class VIV_Default:
     RETURN_NAMES = ("result",)
     FUNCTION = "run"
     CATEGORY = "sub_graph"
-    OUTPUT_NODE = True
 
     def run(self, default, inp=None):
         if inp is None:
