@@ -23,3 +23,4 @@ Now create a folder in the root of your comfyui install (i.e next to `custom_nod
 ### Calling subgraphs
 
 Create a `VIV_Subgraph` node and select your subgraph (might need to hit the "Refresh" button first), the input/outputs should then be populated automatically (resize the node a bit and it should snap to a good size automatically). Any progress bars in the subgraph and any previews in the subgraph will show on the subgraph node, but any previews (like image previews) wont.
+
