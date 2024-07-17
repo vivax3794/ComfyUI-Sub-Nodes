@@ -22,7 +22,8 @@ app.registerExtension({
                     if (this.graph) {
                         if (this.graph.findNodesByType("VIV_Subgraph_Outputs").length > 1) {
                             this.graph.remove(this);
-                            alert("Subgraphs cant have multiple outputs\nif you wish to reset the outputs delete the original node first.");
+                            app.ui.dialog.show("Subgraphs cant have multiple outputs\nif you wish to reset the outputs delete the original node first.")
+                            app.canvas.draw(true, true)
                         };
                     }
                 }, 100)
@@ -53,7 +54,8 @@ app.registerExtension({
                     if (this.graph) {
                         if (this.graph.findNodesByType("VIV_Subgraph_Inputs").length > 1) {
                             this.graph.remove(this);
-                            alert("Subgraphs cant have multiple inputs\nif you wish to reset the inputs delete the original node first.");
+                            app.ui.dialog.show("Subgraphs cant have multiple inputs\nif you wish to reset the inputs delete the original node first.")
+                            app.canvas.draw(true, true)
                         };
                     }
                 }, 100)
@@ -178,7 +180,14 @@ async function load_input_outputs(node, value) {
     let name = value.split(".")[0];
 
     let response = await api.fetchApi(`/viv/input_outputs?workflow=${name}`);
-    let {outputs, inputs} = await response.json();
+    response = await response.json()
+    if (response.error !== undefined) {
+        app.ui.dialog.show(`Error loading input/outputs for subgraph:\n${response.error}`)
+        app.canvas.draw(true, true)
+
+        return;
+    }
+    let {outputs, inputs} = response.data;
 
 
     if (!node.outputs) {

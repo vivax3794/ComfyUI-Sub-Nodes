@@ -60,7 +60,7 @@ def load_workflow(workflow, raw=False):
             data = data["api_prompt"]
         if "nodes" in data:
             raise ValueError((
-                    "Invalid subgraph file\n"
+                    f"Invalid subgraph file: {workflow}\n"
                     "reason: full workflow export without injected `api_prompt` key\n"
                     "hint: Try loading and re exporting the workflow."
                 ))
@@ -253,12 +253,16 @@ async def get_workflow(request):
 async def get_input_outputs(request):
     workflow = request.rel_url.query["workflow"] + ".json"
 
-    response = {
-            "outputs": get_outputs(workflow),
-            "inputs": get_inputs(workflow)
-            }
+    try:
+        response = {
+                "outputs": get_outputs(workflow),
+                "inputs": get_inputs(workflow)
+                }
+        return web.json_response({"data": response})
+    except Exception as err:
+        console.print(err)
+        return web.json_response({"error": str(err)})
 
-    return web.json_response(response)
 
 console.print("[green]Sub nodes, yay![/green]")
 console.print("[red]WARNING: This is a very experimental setup :P![/red]")
