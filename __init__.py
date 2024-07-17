@@ -40,7 +40,7 @@ def get_workflow_names() -> list[str]:
     return [file.name for file in files]
 
 def load_workflow(workflow):
-    with open(SUBNODE_FOLDER / workflow) as f:
+    with open(SUBNODE_FOLDER / workflow, encoding='utf-8') as f:
         data = json.load(f)
 
     if "api_prompt" in data:
@@ -56,7 +56,7 @@ def get_outputs(workflow):
     return []
 
 def get_inputs(workflow):
-    with open(SUBNODE_FOLDER / workflow) as f:
+    with open(SUBNODE_FOLDER / workflow, encoding='utf-8') as f:
         data = json.load(f)
 
     if "api_prompt" in data:
@@ -218,7 +218,7 @@ class VIV_Default:
 @PromptServer.instance.routes.get("/viv/subgraph")
 async def get_workflow(request):
     workflow = request.rel_url.query["workflow"] + ".json"
-    with open(SUBNODE_FOLDER / workflow) as f:
+    with open(SUBNODE_FOLDER / workflow, encoding='utf-8') as f:
         data = json.load(f)
     return web.json_response(data)
 
