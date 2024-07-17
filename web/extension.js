@@ -133,8 +133,8 @@ app.registerExtension({
                     set(newVal) {
                         if (newVal !== value) {
                             value = newVal;
-                            load_input_outputs(node, value);
                             clearTimeout(timeout_id);
+                            load_input_outputs(node, value);
                         }
                     }
                 })
