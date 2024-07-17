@@ -127,6 +127,10 @@ class AcceptAnyWidgetInput(dict):
     def __contains__(self, key: object, /) -> bool:
         return True
 
+class ReturnAnyAmount(tuple):
+    def __getitem__(self, index):
+        return Any("*")
+
 class VIV_Subgraph:
     @classmethod
     def INPUT_TYPES(cls):
@@ -136,8 +140,8 @@ class VIV_Subgraph:
                     }),
                 }
 
-    RETURN_TYPES = tuple(Any("*") for _ in range(100))
-    RETURN_NAMES = tuple("*" for _ in range(100))
+    RETURN_TYPES = ReturnAnyAmount()
+    RETURN_NAMES = ReturnAnyAmount()
     FUNCTION = "run"
     CATEGORY = "sub_graph"
     OUTPUT_NODE = True
@@ -207,8 +211,8 @@ class VIV_Subgraph_inputs:
                 "required": {},
                 }
 
-    RETURN_TYPES = tuple(Any("*") for _ in range(100))
-    RETURN_NAMES = tuple("*" for _ in range(100))
+    RETURN_TYPES = ReturnAnyAmount()
+    RETURN_NAMES = ReturnAnyAmount()
     FUNCTION = "run"
     CATEGORY = "sub_graph"
     OUTPUT_NODE = True

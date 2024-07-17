@@ -181,10 +181,11 @@ async function load_input_outputs(node, value) {
     let {outputs, inputs} = await response.json();
 
 
-    if (node.outputs) {
-        while (node.outputs.length > outputs.length) {
-            node.removeOutput(node.outputs.length - 1);
-        }
+    if (!node.outputs) {
+        node.outputs = []
+    }
+    while (node.outputs.length > outputs.length) {
+        node.removeOutput(node.outputs.length - 1);
     }
     while (node.outputs.length < outputs.length) {
         node.addOutput("*", "*");
@@ -198,12 +199,13 @@ async function load_input_outputs(node, value) {
         i++;
     }
 
-    if (node.inputs) {
-        while (node.inputs.length > inputs.length) {
-            node.removeInput(node.inputs.length - 1);
-        }
+    if (!node.inputs) {
+        node.inputs = []
     }
-    while ((node.inputs?.length || 0) < inputs.length) {
+    while (node.inputs.length > inputs.length) {
+        node.removeInput(node.inputs.length - 1);
+    }
+    while (node.inputs.length < inputs.length) {
         node.addInput("*", "*");
     }
 
