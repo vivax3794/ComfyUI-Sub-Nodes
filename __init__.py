@@ -51,12 +51,19 @@ def get_workflow_names() -> list[str]:
     files = list(SUBNODE_FOLDER.glob("*.json"))
     return [file.name for file in files]
 
-def load_workflow(workflow):
+def load_workflow(workflow, raw=False):
     with open(SUBNODE_FOLDER / workflow, encoding='utf-8') as f:
         data = json.load(f)
 
-    if "api_prompt" in data:
-        data = data["api_prompt"]
+    if not raw:
+        if "api_prompt" in data:
+            data = data["api_prompt"]
+        if "nodes" in data:
+            raise ValueError((
+                    "Invalid subgraph file\n"
+                    "reason: full workflow export without injected `api_prompt` key\n"
+                    "hint: Try loading and re exporting the workflow."
+                ))
 
     return data
 
@@ -68,8 +75,7 @@ def get_outputs(workflow):
     return []
 
 def get_inputs(workflow):
-    with open(SUBNODE_FOLDER / workflow, encoding='utf-8') as f:
-        data = json.load(f)
+    data = load_workflow(workflow, raw=True)
 
     if "api_prompt" in data:
         prompt = data["api_prompt"]
@@ -236,8 +242,7 @@ class VIV_Default:
 @PromptServer.instance.routes.get("/viv/subgraph")
 async def get_workflow(request):
     workflow = request.rel_url.query["workflow"] + ".json"
-    with open(SUBNODE_FOLDER / workflow, encoding='utf-8') as f:
-        data = json.load(f)
+    data = load_workflow(workflow, raw=True)
     return web.json_response(data)
 
 @PromptServer.instance.routes.get("/viv/input_outputs")
