@@ -10,6 +10,6 @@ Repository = "https://github.com/vivax3794/ComfyUI-Sub-Nodes"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "viv"
 DisplayName = "ComfyUI-Sub-Nodes"
 Icon = ""
