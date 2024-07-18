@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-sub-nodes"
+description = "Creating subgraph and Calling subgraphs."
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["rich"]
+
+[project.urls]
+Repository = "https://github.com/vivax3794/ComfyUI-Sub-Nodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "viv"
+DisplayName = "ComfyUI-Sub-Nodes"
+Icon = ""
