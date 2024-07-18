@@ -202,9 +202,8 @@ async function load_input_outputs(node, value) {
 
     let i = 0;
     for (const output of outputs) {
-        let type = output.split(".")[0];
-        node.outputs[i].type = type;
-        node.outputs[i].name = output;
+        node.outputs[i].type = output.type;
+        node.outputs[i].name = output.name;
         i++;
     }
 

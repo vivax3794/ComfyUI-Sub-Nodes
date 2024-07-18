@@ -1,3 +1,4 @@
+from typing import List
 from unittest.mock import MagicMock, patch
 import random
 import time
@@ -73,11 +74,29 @@ def load_workflow(workflow, raw=False):
     return data
 
 def get_outputs(workflow):
-    prompt = load_workflow(workflow)
-    for node in prompt.values():
+    data = load_workflow(workflow, raw=True)
+    if "api_prompt" in data:
+        prompt = data["api_prompt"]
+        extra_data = True
+    else:
+        prompt = data
+        extra_data = False
+
+    results = []
+    for (node_id, node) in prompt.items():
         if node["class_type"] == "VIV_Subgraph_Outputs":
-            return [key for key in node["inputs"].keys()]
-    return []
+            for index, name in enumerate(node["inputs"].keys()):
+                type_ = name.split(".")[0]
+
+                if extra_data:
+                    for graph_node in data["nodes"]:
+                        if str(graph_node["id"]) == node_id:
+                            graph_input = graph_node["inputs"][index]
+                            if "label" in graph_input:
+                                name = graph_input["label"]
+
+                results.append({"name": name, "type": type_})
+    return results
 
 def get_inputs(workflow):
     data = load_workflow(workflow, raw=True)
@@ -121,6 +140,14 @@ def get_inputs(workflow):
                             "name": display_name,
                             "type": type_
                         }
+
+    if extra_data:
+        for graph_node in data["nodes"]:
+            if str(graph_node["id"]) == node_id:
+                for index, graph_input in enumerate(graph_node.get("outputs", [])):
+                    if "label" in graph_input:
+                        input_name = graph_input["label"]
+                        inputs[index]["name"] = input_name
 
     return [name for (_, name) in sorted(inputs.items(), key=lambda x: x[0])]
 
