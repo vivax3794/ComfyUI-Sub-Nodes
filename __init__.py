@@ -164,8 +164,6 @@ class ReturnAnyAmount(tuple):
         return Any("*")
 
 in_subgraph = False
-current_cache_prefix = []
-execution_cache = {}
 
 class VIV_Subgraph:
     @classmethod
@@ -207,13 +205,7 @@ class VIV_Subgraph:
         global depth
 
         try:
-            console.print(f"[cyan]Running subgraph: [/cyan][yellow]{workflow}[/yellow]")
-            current_cache_prefix.append(f"{current_node_id}")
-            key = "-".join(current_cache_prefix)
-            console.print(f"[yellow]using cache key: {key}[/yellow]")
-            if key not in execution_cache:
-                execution_cache[key] = WrappedExecutor()
-            exe = execution_cache[key]
+            exe = WrappedExecutor()
 
             prompt = load_workflow(workflow)
             _, error, outputs, _ = validate_prompt(prompt) 
@@ -242,7 +234,6 @@ class VIV_Subgraph:
 
             return tuple(results.values())
         finally:
-            current_cache_prefix.pop()
             if OUTPUT_RESULTS:
                 OUTPUT_RESULTS.pop()
 
@@ -325,6 +316,7 @@ async def get_input_outputs(request):
     workflow = request.rel_url.query["workflow"] + ".json"
 
     try:
+        load_workflow(workflow) # in order to catch errors
         response = {
                 "outputs": get_outputs(workflow),
                 "inputs": get_inputs(workflow)
