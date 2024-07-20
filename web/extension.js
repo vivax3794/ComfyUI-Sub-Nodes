@@ -134,6 +134,7 @@ app.registerExtension({
                     });
                 });
 
+                let first_time = true;
                 Object.defineProperty(widget, "value", {
                     get() {
                         return value;
@@ -141,7 +142,11 @@ app.registerExtension({
                     set(newVal) {
                         if (newVal !== value) {
                             value = newVal;
-                            load_input_outputs(node, value);
+                            if (first_time) {
+                                first_time = false;
+                            } else {
+                                load_input_outputs(node, value);
+                            }
                         }
                     }
                 })
