@@ -134,7 +134,6 @@ app.registerExtension({
                     });
                 });
 
-                let first_time = true;
                 Object.defineProperty(widget, "value", {
                     get() {
                         return value;
@@ -142,9 +141,7 @@ app.registerExtension({
                     set(newVal) {
                         if (newVal !== value) {
                             value = newVal;
-                            if (first_time) {
-                                first_time = false;
-                            } else {
+                            if (!app.configuringGraph) {
                                 load_input_outputs(node, value);
                             }
                         }
