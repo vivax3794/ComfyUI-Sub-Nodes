@@ -245,8 +245,30 @@ async function load_input_outputs(node, value, only_do_widgets) {
                 Object.defineProperty(widget, "type", {
                     get() {
                         let stack = new Error().stack;
-                        if ((stack.includes("isConvertableWidget") || stack.includes("getExtraMenuOptions")) && current_type == "text") {
+                        if (
+                            (stack.includes("isConvertableWidget") || stack.includes("getExtraMenuOptions"))
+                            && current_type == "text"
+                        ) {
                             return "STRING"
+                        } else {
+                            return current_type
+                        }
+                    },
+                    set(value) {
+                        current_type = value
+                    }
+                })
+            }
+            if (type == "INT:seed") {
+                let current_type = "number"
+                Object.defineProperty(widget, "type", {
+                    get() {
+                        let stack = new Error().stack;
+                        if (
+                            (!stack.includes("isConvertableWidget") && stack.includes("getExtraMenuOptions"))
+                            && current_type == "number"
+                        ) {
+                            return "INT"
                         } else {
                             return current_type
                         }
