@@ -130,15 +130,16 @@ def get_inputs(workflow):
                     cls_input_config = cls.INPUT_TYPES()
                     input_data = cls_input_config.get("required", {}).get(name) or cls_input_config.get("optional", {}).get(name)
 
-                    if len(input_data) >= 2:
-                        widget_data = input_data[1]
-                        if widget_data.get("multiline", False):
-                            widget_data["multiline"] = False
-                    else:
-                        widget_data = None
-                    if isinstance(input_data[0], tuple | list):
-                        widget_data = widget_data or {}
-                        widget_data["values"] = input_data[0]
+
+                    widget_data = {}
+                    if input_data is not None:
+                        if len(input_data) >= 2:
+                            widget_data = input_data[1]
+                            if widget_data.get("multiline", False):
+                                widget_data["multiline"] = False
+
+                        if isinstance(input_data[0], tuple | list):
+                            widget_data["values"] = input_data[0]
 
                     if extra_data:
                         for graph_node in data["nodes"]:
