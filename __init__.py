@@ -170,7 +170,7 @@ class VIV_Subgraph:
     def INPUT_TYPES(cls):
         return {
                 "required": AcceptAnyWidgetInput({
-                    "workflow": (tuple(get_workflow_names()),)
+                    "workflow": (tuple(get_workflow_names()), {"forceInput": True})
                     }),
                 }
 
