@@ -7,6 +7,7 @@ import json
 import pathlib
 from aiohttp import web
 import hashlib
+import traceback
 
 from rich.console import Console
 
@@ -14,6 +15,7 @@ from execution import PromptExecutor, validate_prompt
 import execution
 import folder_paths
 from server import PromptServer
+import nodes
 
 console = Console(color_system="truecolor", force_terminal=True)
 
@@ -124,6 +126,20 @@ def get_inputs(workflow):
                     prompt_name = name
                     node_name = node["class_type"]
 
+                    cls = nodes.NODE_CLASS_MAPPINGS[node_name]
+                    cls_input_config = cls.INPUT_TYPES()
+                    input_data = cls_input_config.get("required", {}).get(name) or cls_input_config.get("optional", {}).get(name)
+
+                    if len(input_data) >= 2:
+                        widget_data = input_data[1]
+                        if widget_data.get("multiline", False):
+                            widget_data["multiline"] = False
+                    else:
+                        widget_data = None
+                    if isinstance(input_data[0], tuple | list):
+                        widget_data = widget_data or {}
+                        widget_data["values"] = input_data[0]
+
                     if extra_data:
                         for graph_node in data["nodes"]:
                             if str(graph_node["id"]) == id:
@@ -138,7 +154,8 @@ def get_inputs(workflow):
                     display_name = f"{prompt_name}.{node_name}.{id}"
                     inputs[input[1]] = {
                             "name": display_name,
-                            "type": type_
+                            "type": type_,
+                            "widget": widget_data
                         }
 
     if extra_data:
@@ -323,7 +340,7 @@ async def get_input_outputs(request):
                 }
         return web.json_response({"data": response})
     except Exception as err:
-        console.print(err)
+        traceback.print_exception(err)
         return web.json_response({"error": str(err)})
 
 

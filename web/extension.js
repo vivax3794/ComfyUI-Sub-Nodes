@@ -107,6 +107,14 @@ app.registerExtension({
                 ctx.restore();
                 return r;
             }
+            let orig = nodeType.prototype.onGraphConfigured 
+            nodeType.prototype.onGraphConfigured = async function() {
+                const node = this;
+                const widget = this.widgets[0];
+                let value = widget.value;
+                await load_input_outputs(node, value, true);
+                orig.apply(this);
+            }
             nodeType.prototype.onNodeCreated = async function () {
                 const node = this;
                 const widget = this.widgets[0];
@@ -126,8 +134,6 @@ app.registerExtension({
                     });
                 });
 
-                const timeout_id = setTimeout(() => load_input_outputs(node, value), 100);
-                
                 Object.defineProperty(widget, "value", {
                     get() {
                         return value;
@@ -135,7 +141,6 @@ app.registerExtension({
                     set(newVal) {
                         if (newVal !== value) {
                             value = newVal;
-                            clearTimeout(timeout_id);
                             load_input_outputs(node, value);
                         }
                     }
@@ -176,7 +181,7 @@ app.registerExtension({
     },
 })
 
-async function load_input_outputs(node, value) {
+async function load_input_outputs(node, value, only_do_widgets) {
     let name = value.split(".")[0];
 
     let response = await api.fetchApi(`/viv/input_outputs?workflow=${name}`);
@@ -188,7 +193,6 @@ async function load_input_outputs(node, value) {
         return;
     }
     let {outputs, inputs} = response.data;
-
 
     if (!node.outputs) {
         node.outputs = []
@@ -207,30 +211,49 @@ async function load_input_outputs(node, value) {
         i++;
     }
 
-    if (!node.inputs) {
-        node.inputs = []
-    }
-    while (node.inputs.length > inputs.length) {
-        node.removeInput(node.inputs.length - 1);
-    }
-    while (node.inputs.length < inputs.length) {
-        node.addInput("*", "*");
+    if (!only_do_widgets) {
+        if (!node.inputs) {
+            node.inputs = []
+        }
+        while (node.inputs.length > inputs.length) {
+            node.removeInput(node.inputs.length - 1);
+        }
+        while (node.inputs.length < inputs.length) {
+            node.addInput("*", "*");
+        }
     }
 
     node.widgets.splice(2);
     i = 0;
     for (const input of inputs) {
-        node.inputs[i].type = input.type;
-        node.inputs[i].name = input.name;
-        i++;
-
-        if (input.type == "COMBO") {
-            continue;
+        if (!only_do_widgets) {
+            node.inputs[i].type = input.type;
+            node.inputs[i].name = input.name;
         }
 
-        let widget_func = ComfyWidgets[input.name.toLowerCase().includes("seed") ? "INT:seed" : input.type];
+        let type = input.name.toLowerCase().includes("seed") ? "INT:seed" : input.type;
+        let widget_func = ComfyWidgets[type];
         if (widget_func !== undefined) {
-            let widget = widget_func(node, input.name, [input.type, {}], app).widget;
+            let widget = widget_func(node, input.name, [input.widget?.values || type, input.widget || {}], app).widget;
+            if (widget.type == "text") {
+                let current_type = "text"
+                Object.defineProperty(widget, "type", {
+                    get() {
+                        let stack = new Error().stack;
+                        if ((stack.includes("isConvertableWidget") || stack.includes("getExtraMenuOptions")) && current_type == "text") {
+                            return "STRING"
+                        } else {
+                            return current_type
+                        }
+                    },
+                    set(value) {
+                        current_type = value
+                    }
+                })
+            }
+            if (node.properties[input.name] === undefined) {
+                node.properties[input.name] = widget.value;
+            }
             Object.defineProperty(widget, "value", {
                 get() {
                     return node.properties[input.name];
@@ -239,8 +262,15 @@ async function load_input_outputs(node, value) {
                     node.properties[input.name] = newVal;
                 }
             })
+            if (!only_do_widgets) {
+                node.removeInput(node.inputs.length - 1);
+            }
+        } else {
+            i++;
         }
     }
+
+    node.size[0] = 300;
 }
 
 let last_idempt = -1;
