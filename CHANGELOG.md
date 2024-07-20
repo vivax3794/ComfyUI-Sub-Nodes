@@ -1,3 +1,6 @@
+## 1.1.1
+* Bugfix for some COMBO widgets
+
 ## 1.1.0
 
 * Allow renaming nodes
