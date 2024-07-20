@@ -1,3 +1,6 @@
+## 1.1.3
+* Bug fix: input/ouput loading is now even less prone to race condition and are more responsive!
+
 ## 1.1.2
 * Bug fix: Allow reconnecting from input node to COMBO type after disconnecting it.
 * Bug fix: Converting seed widget to input creates slot of type INT instead of "number"
@@ -5,7 +8,7 @@
 * Bug fix: Loading workflows containing subgraphs with no input slots by default would overwrite widgets converted to slots. 
 
 ## 1.1.1
-* Bugfixa: for some COMBO widgets
+* Bugfix: for some COMBO widgets
 
 ## 1.1.0
 
