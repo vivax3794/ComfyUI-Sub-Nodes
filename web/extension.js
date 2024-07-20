@@ -80,7 +80,7 @@ app.registerExtension({
                         if (from_node) {
                             const from_slot = from_node.inputs[link_info.target_slot];
                             if (from_slot) {
-                                node_slot.type = from_slot.type;
+                                node_slot.type = from_slot.type == "COMBO" ? "*" : from_slot.type;
                                 node_slot.name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
                             }
                         }
