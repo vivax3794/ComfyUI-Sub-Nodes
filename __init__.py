@@ -176,6 +176,8 @@ class Any(str):
 class AcceptAnyWidgetInput(dict):
     def __contains__(self, key: object, /) -> bool:
         return True
+    def __getitem__(self, key):
+        return self.get(key, Any("*"))
 
 class ReturnAnyAmount(tuple):
     def __getitem__(self, index):
