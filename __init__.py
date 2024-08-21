@@ -23,23 +23,24 @@ console = Console(color_system="truecolor", force_terminal=True)
 idempt = 0
 current_node_id = 0
 
-orignal_input = execution.get_input_data
-def new_input(*args):
+orignal_exe = execution.execute
+def new_exe(*args):
     global idempt
     global current_node_id
     try:
-        node_id = args[2]
+        node_id = args[3]
         current_node_id = node_id
-        prompt = args[4].get_original_prompt()
-        class_type = prompt[node_id]["class_type"];
+        node = args[1].get_node(node_id)
+        class_type = node["class_type"];
         node_title = f"{class_type} #{node_id}"
         PromptServer.instance.send_sync("/viv/subgraph/executing", {"title": node_title, "idempt": idempt})
         idempt += 1
     except Exception as e:
+        console.print(f"[red]{e}[/red]")
         pass
 
-    return orignal_input(*args)
-execution.get_input_data = new_input
+    return orignal_exe(*args)
+execution.execute = new_exe
 
 SUBNODE_FOLDER = pathlib.Path(folder_paths.base_path) / "subnodes"
 if not SUBNODE_FOLDER.exists():
