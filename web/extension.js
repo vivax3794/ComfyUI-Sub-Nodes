@@ -1,6 +1,7 @@
 import { ComfyApp, app } from "../../scripts/app.js";
 import { api } from "../../../scripts/api.js"
 import {ComfyWidgets} from "../../../scripts/widgets.js";
+import {getWidgetConfig} from "../../../extensions/core/widgetInputs.js";
 
 const original = app.graphToPrompt;
 app.graphToPrompt = async function() {
@@ -74,14 +75,44 @@ app.registerExtension({
                 if (!link_info) return;
 
                 if (type == 2 && connected) {
-                    if (node_slot.name == "*") {
-                        this.addOutput("*", "*")
-                        const from_node = this.graph.getNodeById(link_info.target_id);
-                        if (from_node) {
-                            const from_slot = from_node.inputs[link_info.target_slot];
-                            if (from_slot) {
+                    const from_node = this.graph.getNodeById(link_info.target_id);
+                    if (from_node) {
+                        const from_slot = from_node.inputs[link_info.target_slot];
+                        if (from_slot) {
+                            if (node_slot.name == "*") {
+                                this.addOutput("*", "*")
                                 node_slot.type = from_slot.type == "COMBO" ? "*" : from_slot.type;
-                                node_slot.name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
+                                let name = `${from_slot.type}.${from_slot.name}.${(Math.random() * 100).toFixed()}`;
+                                node_slot.name = name
+                            }
+
+                            if (from_slot.widget) {
+                                let name = node_slot.name;
+                                if (
+                                    this.widgets===undefined ||
+                                    this.widgets.find((widget) => widget.name == name)===undefined
+                                ) {
+                                    let node = this;
+                                    setTimeout(() => {
+                                        let type;   
+                                        let config;
+                                        try {
+                                            [type, config] = getWidgetConfig(from_slot);
+                                        } catch {
+                                            return;
+                                        }
+                                        if (type === "STRING") type = "text"
+                                        let widget = node.addWidget(type, name, config);
+                                        Object.defineProperty(widget, "value", {
+                                            get() {
+                                                return node.properties[name];
+                                            },
+                                            set(newVal) {
+                                                node.properties[name] = newVal;
+                                            }
+                                        })
+                                    }, 500)
+                                }
                             }
                         }
                     }

@@ -122,7 +122,6 @@ def get_inputs(workflow):
                     cls_input_config = cls.INPUT_TYPES()
                     input_data = cls_input_config.get("required", {}).get(name) or cls_input_config.get("optional", {}).get(name)
 
-
                     widget_data = {}
                     if input_data is not None:
                         if len(input_data) >= 2:
@@ -158,6 +157,8 @@ def get_inputs(workflow):
                     if "label" in graph_input:
                         input_name = graph_input["label"]
                         inputs[index]["name"] = input_name
+                    if graph_input["name"] in graph_node["properties"]:
+                        inputs[index]["widget"]["default"] = graph_node["properties"][graph_input["name"]]
 
     return [name for (_, name) in sorted(inputs.items(), key=lambda x: x[0])]
 
@@ -317,6 +318,7 @@ class VIV_Default:
                     }
                 }
 
+    DEPRECATED = True
     RETURN_TYPES = (Any("*"),)
     RETURN_NAMES = ("result",)
     FUNCTION = "run"
