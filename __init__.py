@@ -11,7 +11,8 @@ import traceback
 
 from rich.console import Console
 
-from execution import PromptExecutor, validate_prompt
+from execution import validate_prompt
+from comfy_execution.graph_utils import GraphBuilder, is_link
 import execution
 import folder_paths
 from server import PromptServer
@@ -39,16 +40,6 @@ def new_input(*args):
 
     return orignal_input(*args)
 execution.get_input_data = new_input
-
-class WrappedExecutor(PromptExecutor):
-    def __init__(self):
-        server = MagicMock()
-        super().__init__(server)
-        self._viv_error = None
-
-    def handle_execution_error(self, *args):
-        self._viv_error = args[-1]
-        super().handle_execution_error(*args)
 
 SUBNODE_FOLDER = pathlib.Path(folder_paths.base_path) / "subnodes"
 if not SUBNODE_FOLDER.exists():
@@ -222,40 +213,50 @@ class VIV_Subgraph:
         return m.digest().hex()
 
     def run(self, workflow: str, **kwargs):
-        global depth
+        prompt = load_workflow(workflow)
+        _, error, outputs, _ = validate_prompt(prompt) 
+        if error is not None:
+           console.print(f"[red]INVALID SUBGRAPH: {workflow}[/red]")
+           console.print(error)
+           raise ValueError(f"Invalid subgraph: {error['message']}")
 
-        try:
-            exe = WrappedExecutor()
+        inputs = get_inputs(workflow)
+        input_order = [inp["name"] for inp in inputs]
+        kwargs = {key: value for (key, value) in kwargs.items() if key in input_order}
+        for inp in inputs:
+           if inp["name"] not in kwargs:
+               kwargs[inp["name"]] = None
+        kwargs = sorted(kwargs.items(), key=lambda x: input_order.index(x[0]))
+        kwargs = (value for (_, value) in kwargs)
 
-            prompt = load_workflow(workflow)
-            _, error, outputs, _ = validate_prompt(prompt) 
-            if error is not None:
-                console.print(f"[red]INVALID SUBGRAPH: {workflow}[/red]")
-                console.print(error)
-                raise ValueError(f"Invalid subgraph: {error['message']}")
+        graph = GraphBuilder()
+        output_node = None
+        for (node_id, orig_node) in prompt.items():
+            node = graph.node(orig_node["class_type"], node_id)
+            if orig_node["class_type"] == "VIV_Subgraph_Outputs":
+                output_node = node
 
-            inputs = get_inputs(workflow)
-            input_order = [inp["name"] for inp in inputs]
-            kwargs = {key: value for (key, value) in kwargs.items() if key in input_order}
-            for inp in inputs:
-                if inp["name"] not in kwargs:
-                    kwargs[inp["name"]] = None
-            kwargs = sorted(kwargs.items(), key=lambda x: input_order.index(x[0]))
-            kwargs = (value for (_, value) in kwargs)
+        for (node_id, orig_node) in prompt.items():
+            node = graph.lookup_node(node_id)
+            for k, v in orig_node["inputs"].items():
+                if is_link(v):
+                    parent = graph.lookup_node(v[0])
+                    node.set_input(k, parent.out(v[1]))
+                else:
+                    node.set_input(k, v)
+        for (node_id, orig_node) in prompt.items():
+            if orig_node["class_type"] == "VIV_Subgraph_Inputs":
+                for index, value in enumerate(kwargs):
+                    graph.replace_node_output(node_id, index, value)
 
-            INPUTS.append(tuple(kwargs))
-            exe.execute(prompt, random.random(), {}, outputs)
-            if exe._viv_error is not None:
-                console.print(f"[red]ERROR SUBGRAPH: {workflow}[/red]")
-                raise exe._viv_error
-            results = OUTPUT_RESULTS[-1]
-
-            console.print("[cyan]Subgraph done[/cyan]")
-
-            return tuple(results.values())
-        finally:
-            if OUTPUT_RESULTS:
-                OUTPUT_RESULTS.pop()
+        if output_node:
+            result = tuple(output_node.inputs.values())
+        else:
+            result = ()
+        return {
+                "result": result,
+                "expand": graph.finalize(),
+        }
 
 
 OUTPUT_RESULTS = []
@@ -274,14 +275,13 @@ class VIV_Subgraph_outputs:
     OUTPUT_NODE = True
 
     def run(self, **kwargs):
-        OUTPUT_RESULTS.append(kwargs)
         return ()
 
-    @classmethod
-    def IS_CHANGED(cls, **kwargs):
-        return time.time()
+    # @classmethod
+    # def IS_CHANGED(cls, **kwargs):
+    #     return time.time()
 
-INPUTS = []
+# INPUTS = []
 
 class VIV_Subgraph_inputs:
     @classmethod
@@ -296,12 +296,13 @@ class VIV_Subgraph_inputs:
     CATEGORY = "sub_graph"
     OUTPUT_NODE = True
 
-    def run(self):
-        return tuple(INPUTS.pop())
+    def run(self, **kwargs):
+        # return tuple(INPUTS.pop())
+        return ()
 
-    @classmethod
-    def IS_CHANGED(cls, **args):
-        return time.time()
+    # @classmethod
+    # def IS_CHANGED(cls, **args):
+    #     return time.time()
 
 class VIV_Default:
     @classmethod
