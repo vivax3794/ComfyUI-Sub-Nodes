@@ -29,12 +29,12 @@ def new_input(*args):
     try:
         node_id = args[2]
         current_node_id = node_id
-        prompt = args[4]
+        prompt = args[4].get_original_prompt()
         class_type = prompt[node_id]["class_type"];
         node_title = f"{class_type} #{node_id}"
         PromptServer.instance.send_sync("/viv/subgraph/executing", {"title": node_title, "idempt": idempt})
         idempt += 1
-    except:
+    except Exception as e:
         pass
 
     return orignal_input(*args)
