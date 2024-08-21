@@ -102,7 +102,11 @@ app.registerExtension({
                                             return;
                                         }
                                         if (type === "STRING") type = "text"
-                                        let widget = node.addWidget(type, name, config);
+                                        if (typeof(type) === "object") {
+                                            config.values = type;
+                                            type = "COMBO";
+                                        }
+                                        let widget = node.addWidget(type, name, config.default, undefined, config);
                                         Object.defineProperty(widget, "value", {
                                             get() {
                                                 return node.properties[name];
