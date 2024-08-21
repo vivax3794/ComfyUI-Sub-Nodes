@@ -1,3 +1,7 @@
+## 2.0.0
+* Major refactor: Use new node expansion feature instead of spawning sub executor
+* Feature: Input node now gets widgets added for supported types where you can set the default value
+
 ## 1.1.3
 * Bug fix: input/ouput loading is now even less prone to race condition and are more responsive!
 
