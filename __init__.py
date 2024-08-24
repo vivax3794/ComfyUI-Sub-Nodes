@@ -125,9 +125,10 @@ def get_inputs(workflow):
                     widget_data = {}
                     if input_data is not None:
                         if len(input_data) >= 2:
-                            widget_data = input_data[1]
-                            if widget_data.get("multiline", False):
-                                widget_data["multiline"] = False
+                            if isinstance(input_data[1], dict):
+                                widget_data = input_data[1]
+                                if widget_data.get("multiline", False):
+                                    widget_data["multiline"] = False
 
                         if isinstance(input_data[0], tuple | list):
                             widget_data["values"] = input_data[0]
