@@ -102,6 +102,7 @@ app.registerExtension({
                                             return;
                                         }
                                         if (type === "STRING") type = "text"
+                                        if (type === "INT") type = "number"
                                         if (typeof(type) === "object") {
                                             config.values = type;
                                             type = "COMBO";
@@ -302,7 +303,7 @@ async function load_input_outputs(node, value, only_do_widgets) {
                     get() {
                         let stack = new Error().stack;
                         if (
-                            (!stack.includes("isConvertableWidget") && stack.includes("getExtraMenuOptions"))
+                            (!stack.includes("isConvertibleWidget") && stack.includes("getExtraMenuOptions"))
                             && current_type == "number"
                         ) {
                             return "INT"
