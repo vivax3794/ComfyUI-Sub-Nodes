@@ -1,3 +1,8 @@
+## 2.0.1
+* Bug fix: can now convert seed widgets to inputs again
+    * Had broken after https://github.com/Comfy-Org/ComfyUI_frontend/pull/404
+* Bug fix: Trying to load a subflow with invalid widget data will now ignore the widget
+
 ## 2.0.0
 * Major refactor: Use new node expansion feature instead of spawning sub executor
 * Feature: Input node now gets widgets added for supported types where you can set the default value
