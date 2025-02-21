@@ -1,3 +1,11 @@
+# 📢 Repository Archived
+I haven’t used ComfyUI in months, and maintaining this plugin has become more of a chore than a passion. The JS side of this codebase is a long list of hacks to work around ComfyUI’s quirks, and I no longer have the time or energy to keep up with it.
+
+If anyone is interested in taking over the repo, feel free to open an issue, and we can discuss it. Otherwise, consider this project archived.
+
+Thanks to everyone who used or contributed to it! 🚀
+
+
 # Subgraph nodes?!
 
 YES! Finally!
